@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Firebase_version9_Auth_RealtimeDB(G'sACADEMY初学者用サンプル)</title>
+<style>.remove:hover{background:aquamarine;}</style>
+<style>html,body{height:100%;}body{padding:0;margin:0;}h1{padding:0;margin:0;font-size:50%;}#geocode{font-size: 120%;}</style>
+</head>
+<body>
+    <h1 id="status"> Login... </h1>
+    <button id="out">ログアウト</button>
+    <!-- コンテンツ表示画面 -->
+    <div>
+        <div>
+            名前：<input type="text" id="uname">
+        </div>
+        <div>
+            <textarea id="text" cols="30" rows="10"></textarea>
+            <button id="send">送信</button>
+        </div>
+        <div id="output" style="overflow: auto;height: 300px;"></div>
+    </div>
+
+    <!-- MAP[START] -->
+    <h1>Map:Geolocation</h1>
+    <div id="myMap" style='width:60%;height:70%;float:left;'></div>
+    <!-- MAP[END] -->
+
+
+<script src='https://www.bing.com/api/maps/mapcontrol?callback=GetMap&key=AhoD6TA-Co5c6u1awUm7rZeQyrScjAReiroC98qIYtO2w0oDdf3EKGgaKYr8z9FY'></script>
+<script src="./BmapQuery.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+<script>
+//****************************************************************************************
+// BingMaps&BmapQuery
+//****************************************************************************************
+//Init
+
+// function GetMap(){
+//     //------------------------------------------------------------------------
+//     //1. Instance
+//     //------------------------------------------------------------------------
+//     const map = new Bmap("#myMap");
+
+//     //------------------------------------------------------------------------
+//     //2. geolocation: Display Map
+//     //   map.geolocation(function(data:object){...});
+//     //------------------------------------------------------------------------
+//     map.geolocation(function(data) {
+//         //location
+//         const lat = data.coords.latitude; //緯度
+//         const lon = data.coords.longitude;  //軽度
+//         console.log(lat)
+//         console.log(lon)
+
+//         //Map
+//         map.startMap(lat, lon, "load", 10);
+//         //pin
+//         map.pin(lat,lon,"#ff0000");
+//     });
+
+// }
+</script>
+
+<script type="module">
+//下記map用記述(動かなくなる可能性あるのでいじらない)
+let lat = "";
+let lon = "";
+function GetMap(){
+    //------------------------------------------------------------------------
+    //1. Instance
+    //------------------------------------------------------------------------
+    const map = new Bmap("#myMap");
+
+    //------------------------------------------------------------------------
+    //2. geolocation: Display Map
+    //   map.geolocation(function(data:object){...});
+    //------------------------------------------------------------------------
+    map.geolocation(function(data) {
+        //location
+        lat = data.coords.latitude; //緯度
+        lon = data.coords.longitude;  //軽度
+        // console.log(lat)
+        // console.log(lon)
+
+        //Map
+        map.startMap(lat, lon, "load", 10);
+        //pin
+        map.pin(lat,lon,"#ff0000");
+    });
+
+}
+// GetMap();
+
+
+
+//###############################################
+// 必要なJSを読み込み
+//###############################################
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.4.1/firebase-app.js";
+import { getDatabase, ref, push, set, onChildAdded, remove, onChildRemoved, onValue, update} from "https://www.gstatic.com/firebasejs/9.4.1/firebase-database.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.4.1/firebase-auth.js";
+ 
+
+//###############################################
+//FirebaseConfig
+//###############################################
+const firebaseConfig = {
+    apiKey: "AIzaSyCFiRG4FgXaQtzL5b8kfyoqoicwvop5XWY",
+    authDomain: "mapapp-13c31.firebaseapp.com",
+    projectId: "mapapp-13c31",
+    storageBucket: "mapapp-13c31.appspot.com",
+    messagingSenderId: "209254382683",
+    appId: "1:209254382683:web:fd54701e22e347555bd37e"
+};
+const app = initializeApp(firebaseConfig);
+
+
+//###############################################
+//Firebase-RealtimeDatabase接続
+//###############################################
+const db  = getDatabase(app); //RealtimeDBに接続
+
+
+//###############################################
+//GoogleAuth用
+//###############################################
+const provider = new GoogleAuthProvider();
+provider.addScope('https://www.googleapis.com/auth/contacts.readonly');
+const auth = getAuth();
+
+GetMap();
+
+//###############################################
+//Loginしていれば処理します
+//###############################################
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        // User is signed in, see docs for a list of available properties
+        // https://firebase.google.com/docs/reference/js/firebase.User
+        const uid = user.uid;
+        const dbRef = ref(db,"users/"+uid); //RealtimeDB内の"chat"を使う
+        //lat とlonをdbに登録
+        // console.log(lat)
+        // console.log(lon)
+
+        //ユーザー情報取得できます
+        if (user !== null) {
+            user.providerData.forEach((profile) => {
+                console.log(uid);
+                console.log("Sign-in provider: " + profile.providerId);
+                console.log("  Provider-specific UID: " + profile.uid);
+                console.log("  Name: " + profile.displayName);
+                console.log("  Email: " + profile.email);
+                console.log("  Photo URL: " + profile.photoURL);
+            });
+        }
+
+        //データ登録(Click)
+        $("#send").on("click",function() {
+            const msg = {
+                uname: $("#uname").val(),
+                text: $("#text").val(),
+                lat: lat,  //緯度
+                lon: lon   //経度
+            }
+            const newPostRef = push(dbRef); //Pushできる状況を作って
+            set(newPostRef, msg);           //DBに値をセットする
+        });
+
+        // データ登録(Enter) ここ要らないかも
+        $("#text").on("keydown",function(e){
+            console.log(e);        //e変数の中身を確認！！
+            if(e.keyCode == 13){   //EnterKey=13
+                const msg = {
+                    uname: $("#uname").val(),
+                    text: $("#text").val()
+                }
+                const newPostRef = push(dbRef); //Pushできる状況を作って
+                set(newPostRef, msg);           //DB"chat"にオブジェクトデータをセット
+            }
+        });
+
+
+        //db情報常時更新(下記記述で一旦ちゃんと動いている)
+        //todo データ登録の更新の
+        // $(function(){
+        //     setInterval(function(){
+        //         console.log(profile.uid);
+        //     },1000);
+        // });
+
+        //更新用関数
+        // onValue(ref(db,"users/"+uid),(snapshot) => {
+        //     const data = snapshot.val();
+        //     console.log(data);
+        //     // updateStarCount(postElement, data);
+        // });
+        
+        //最初にデータ取得＆onSnapshotでリアルタイムにデータを取得
+        let key = "";
+        onChildAdded(dbRef, function(data){   
+            const msg  = data.val();    //オブジェクトデータを取得し、変数msgに代入
+            key  = data.key;      //データのユニークキー（削除や更新に使用可能）
+            //表示用テキスト・HTMLを作成
+            console.log("ここ");
+            console.log(key);
+            let h = '<p>';
+                h += msg.uname;
+                h += '<br>';
+                h += msg.text;
+                h += '<br>';
+                h += msg.lat;    //緯度
+                h += '<br>';
+                h += msg.lon;    //経度
+                h += '</p>';
+                $("#output").append(h); //#outputの最後に追加
+
+                // onChildAdded(ref(db,"users"), function(data){
+                //     const msg1 = data.key;
+                //     console.log(msg1);
+                // });
+        });
+
+        //db情報常時更新(下記記述で一旦ちゃんと動いている)
+        //データの常時更新完了!
+        //todo 緯度と経度をここに入れる!
+        $(function(){
+            setInterval(function(){
+                console.log(key);
+                const updates = {};
+                updates["users/"+uid+"/"+key+"/lat"] = lat;  //緯度
+                updates["users/"+uid+"/"+key+"/lon"] = lon;  //経度
+                console.log(lat);
+                console.log(lon);
+                return update(ref(db), updates)
+            },1000);
+        });
+
+
+        //更新用関数
+        // onValue(ref(db,"users/"+uid+"/"+key+"/lat"),(snapshot) => {
+        //     const data = snapshot.val();
+        //     console.log(key);
+        //     // console.log(key);
+        //     // updateStarCount(postElement, data);
+        // });
+
+    } else {
+        _redirect();  // User is signed out
+    }
+});
+
+
+//###############################################
+//Logout処理
+//###############################################
+$("#out").on("click", function () {
+    // signInWithRedirect(auth, provider);ß
+    signOut(auth).then(() => {
+        // Sign-out successful.
+        _redirect();
+    }).catch((error) => {
+        // An error happened.
+        console.error(error);
+    });
+});
+
+
+//###############################################
+//Login画面へ
+//###############################################
+function _redirect(){
+    location.href="login.html";
+}
+
+</script>
+</body>
+</html>
